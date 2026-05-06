@@ -106,11 +106,13 @@ class CleanerUI(ctk.CTk):
             cb = ctk.CTkCheckBox(grid_container, text=p, variable=self.pattern_vars[p], font=("Arial", 11))
             cb.grid(row=i//cols, column=i%cols, padx=10, pady=5, sticky="w")
         self.btn_scan_dev = ctk.CTkButton(self.tab_projects, text="🔎 Scan Dev Folders", command=self.run_dev_scan)
-        self.btn_scan_dev.pack(pady=10)
+        self.btn_scan_dev.pack(pady=5)
+
+        self.btn_clean_dev = ctk.CTkButton(self.tab_projects, text="🗑️ Delete Found Folders", fg_color="#e74c3c", hover_color="#c0392b", command=self.run_dev_clean)
+        self.btn_clean_dev.pack(pady=5)
+
         self.dev_scroll = ctk.CTkScrollableFrame(self.tab_projects, label_text="Found Project Junk")
         self.dev_scroll.pack(fill="both", expand=True, padx=10, pady=10)
-        self.btn_clean_dev = ctk.CTkButton(self.tab_projects, text="🗑️ Delete Found Folders", fg_color="#e74c3c", command=self.run_dev_clean)
-        self.btn_clean_dev.pack(pady=10)
 
     def browse_path(self):
         path = filedialog.askdirectory()
