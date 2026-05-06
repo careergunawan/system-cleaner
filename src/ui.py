@@ -1,6 +1,6 @@
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import threading
 import psutil
 import os
@@ -12,8 +12,8 @@ class CleanerUI(ctk.CTk):
         super().__init__()
 
         # Window Config
-        self.title("AG System Cleaner")
-        self.geometry("950x650")
+        self.title("Giat Cleaner - by Gugun Gunawan, S.Kom")
+        self.geometry("950x680")
         
         # Core Logic
         self.core = CleanerCore()
@@ -35,21 +35,29 @@ class CleanerUI(ctk.CTk):
         self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         
-        self.logo = ctk.CTkLabel(self.sidebar, text="AG CLEANER", font=ctk.CTkFont(size=24, weight="bold"))
-        self.logo.pack(pady=40, padx=20)
+        self.logo = ctk.CTkLabel(self.sidebar, text="GIAT CLEANER", font=ctk.CTkFont(size=24, weight="bold"))
+        self.logo.pack(pady=(40, 10), padx=20)
+        
+        self.ver = ctk.CTkLabel(self.sidebar, text="v1.0.0 Public Release", font=ctk.CTkFont(size=10), text_color="gray")
+        self.ver.pack(pady=(0, 20))
 
         self.stats_box = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.stats_box.pack(pady=10, padx=20, fill="x")
         self.free_lbl = ctk.CTkLabel(self.stats_box, text="Free: -- GB", font=("Arial", 14, "bold"), text_color="#2ecc71")
         self.free_lbl.pack()
 
-        # Stop Button in Sidebar
         self.btn_stop = ctk.CTkButton(self.sidebar, text="🛑 Batalkan Proses", fg_color="#e67e22", hover_color="#d35400", command=self.stop_process, state="disabled")
         self.btn_stop.pack(pady=20, padx=20, fill="x")
 
+        # Author Info
+        self.author_box = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        self.author_box.pack(side="bottom", fill="x", pady=(10, 20), padx=20)
+        ctk.CTkLabel(self.author_box, text="Developed by:", font=("Arial", 10, "italic"), text_color="gray").pack()
+        ctk.CTkLabel(self.author_box, text="Gugun Gunawan, S.Kom", font=("Arial", 11, "bold")).pack()
+
         # Theme Switcher
         self.appearance_mode_menu = ctk.CTkOptionMenu(self.sidebar, values=["Dark", "Light", "System"], command=self.change_appearance)
-        self.appearance_mode_menu.pack(side="bottom", padx=20, pady=20)
+        self.appearance_mode_menu.pack(side="bottom", padx=20, pady=10)
         self.appearance_mode_menu.set("Dark")
 
         # --- Main Content ---
@@ -62,7 +70,6 @@ class CleanerUI(ctk.CTk):
         self.setup_system_tab()
         self.setup_projects_tab()
 
-        # Global Status Bar
         self.status_bar = ctk.CTkLabel(self, text="Ready to scan...", font=("Arial", 12, "italic"))
         self.status_bar.grid(row=1, column=1, pady=(0, 5))
         
@@ -107,10 +114,8 @@ class CleanerUI(ctk.CTk):
             cb.grid(row=i//cols, column=i%cols, padx=10, pady=5, sticky="w")
         self.btn_scan_dev = ctk.CTkButton(self.tab_projects, text="🔎 Scan Dev Folders", command=self.run_dev_scan)
         self.btn_scan_dev.pack(pady=5)
-
         self.btn_clean_dev = ctk.CTkButton(self.tab_projects, text="🗑️ Delete Found Folders", fg_color="#e74c3c", hover_color="#c0392b", command=self.run_dev_clean)
         self.btn_clean_dev.pack(pady=5)
-
         self.dev_scroll = ctk.CTkScrollableFrame(self.tab_projects, label_text="Found Project Junk")
         self.dev_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -155,6 +160,8 @@ class CleanerUI(ctk.CTk):
         self.set_busy(False)
 
     def run_clean(self):
+        if not messagebox.askyesno("Konfirmasi Keamanan", "Apakah Anda yakin ingin menghapus file sistem yang dipilih?"):
+            return
         self.set_busy(True)
         self.btn_clean_sys.configure(state="disabled")
         threading.Thread(target=self._clean_thread, daemon=True).start()
@@ -185,9 +192,7 @@ class CleanerUI(ctk.CTk):
     def _dev_scan_thread(self):
         root = self.project_path_var.get()
         selected_patterns = [p for p, v in self.pattern_vars.items() if v.get()]
-        
         found = self.core.scan_dev_folders(root, selected_patterns, self.stop_event)
-        
         for item in found:
             row = ctk.CTkFrame(self.dev_scroll, fg_color="transparent")
             row.pack(fill="x", pady=2)
@@ -197,12 +202,19 @@ class CleanerUI(ctk.CTk):
             size_lbl = ctk.CTkLabel(row, text=format_size(item['size']))
             size_lbl.pack(side="right")
             self.found_dev_items.append({"path": item['path'], "var": var, "lbl": size_lbl})
-        
         self.status_bar.configure(text=f"Ditemukan {len(found)} folder." if not self.stop_event.is_set() else "Scan dibatalkan.")
         self.btn_scan_dev.configure(state="normal")
         self.set_busy(False)
 
     def run_dev_clean(self):
+        to_clean = [i for i in self.found_dev_items if i['var'].get()]
+        if not to_clean:
+            messagebox.showwarning("Peringatan", "Tidak ada folder yang dipilih untuk dihapus.")
+            return
+        
+        if not messagebox.askyesno("Konfirmasi Keamanan", f"Anda akan menghapus {len(to_clean)} folder proyek. Tindakan ini tidak bisa dibatalkan. Lanjutkan?"):
+            return
+
         self.set_busy(True)
         self.btn_clean_dev.configure(state="disabled")
         threading.Thread(target=self._dev_clean_thread, daemon=True).start()

@@ -1,31 +1,49 @@
-# AG System Cleaner
+# Giat Cleaner 🚀
 
-A lightweight, modern system cleanup utility for Windows.
+A lightweight, modern system cleanup utility for Windows, designed for developers and power users.
 
-## Features
-- **Dynamic Scanning**: Scans common Windows junk locations.
-- **Disk Analytics**: Shows real-time disk usage for Drive C:.
-- **Modern UI**: Built with CustomTkinter for a premium feel.
-- **Safe Cleaning**: Skips files that are currently in use by the system.
+## 👤 Author
+**Gugun Gunawan, S.Kom**
+*Developer & System Optimizer*
 
-## Project Structure
-- `main.py`: Entry point.
-- `src/core.py`: Cleanup logic.
-- `src/ui.py`: GUI components.
-- `src/utils.py`: Helper functions.
+---
 
-## Setup
-1. Install requirements:
+## 🌟 Features
+- **System Junk Cleanup**: Scan and remove Windows temp files, update cache, and prefetch data safely.
+- **Developer Mode (Dev Cleaner)**: Recursively find and delete heavy folders like `node_modules`, `vendor`, `target`, `bin/obj`, and more.
+- **Dynamic Path Selection**: Point the cleaner to any drive or project directory.
+- **Disk Analytics**: Real-time monitoring of Drive C: storage.
+- **Safety First**: Includes security confirmation dialogs and skips files currently in use.
+- **Modern UI**: Dark/Light mode support with a premium responsive interface.
+
+## 🛠️ Project Structure
+- `main.py`: Main application entry point.
+- `src/core.py`: Cleanup and scanning logic.
+- `src/ui.py`: CustomTkinter GUI implementation.
+- `src/utils.py`: Utility functions for file operations.
+- `scripts/clean_scripts.py`: Standalone CLI tool for cleaning code cache.
+
+## 🚀 Setup & Installation
+1. Clone this repository.
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-2. Run the application:
+3. Run the application:
    ```bash
    python main.py
    ```
 
-## Creating Executable
-To use on other devices without Python, install `pyinstaller` and run:
-```bash
-pyinstaller --noconsole --onefile main.py
-```
+## 📦 Creating a Standalone Executable
+To use this tool on any Windows machine without Python installed:
+1. Install PyInstaller: `pip install pyinstaller`
+2. Build the exe:
+   ```bash
+   pyinstaller --noconsole --onefile --name "AG_System_Cleaner" main.py
+   ```
+
+## 📜 License
+This project is open-source and available under the **MIT License**.
+
+---
+*Developed with ❤️ for the Developer Community.*
