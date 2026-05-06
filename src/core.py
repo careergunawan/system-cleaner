@@ -14,28 +14,32 @@ class CleanerCore:
         # Patterns for developer folders
         self.dev_patterns = ["node_modules", "vendor", "target", "bin", "obj", "__pycache__", ".next", ".nuxt", "dist", "build"]
 
-    def scan_category(self, category_name):
+    def scan_category(self, category_name, stop_event=None):
         if category_name in self.categories:
             path = self.categories[category_name]["path"]
             if os.path.exists(path):
-                return get_directory_size(path)
+                return get_directory_size(path, stop_event)
         return 0
 
-    def scan_dev_folders(self, root_path, selected_patterns):
-        """Scans a directory for developer junk folders."""
+    def scan_dev_folders(self, root_path, selected_patterns, stop_event=None):
+        """Scans a directory for developer junk folders with stop support."""
         found_folders = []
         if not os.path.exists(root_path):
             return found_folders
 
         try:
             for root, dirs, files in os.walk(root_path):
+                if stop_event and stop_event.is_set():
+                    break
                 # Optimization: Don't go deeper into folders we are already going to delete
                 for d in list(dirs):
+                    if stop_event and stop_event.is_set():
+                        break
                     if d in selected_patterns:
                         full_path = os.path.join(root, d)
-                        size = get_directory_size(full_path)
+                        size = get_directory_size(full_path, stop_event)
                         found_folders.append({"path": full_path, "name": d, "size": size})
-                        dirs.remove(d) # Don't recurse into found folder
+                        dirs.remove(d) 
         except Exception:
             pass
         return found_folders

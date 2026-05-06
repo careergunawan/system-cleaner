@@ -19,6 +19,7 @@ class CleanerUI(ctk.CTk):
         self.core = CleanerCore()
         
         # UI State
+        self.stop_event = threading.Event()
         self.selected_vars = {name: tk.BooleanVar(value=True) for name in self.core.categories}
         self.category_labels = {}
         self.found_dev_items = []
@@ -37,11 +38,14 @@ class CleanerUI(ctk.CTk):
         self.logo = ctk.CTkLabel(self.sidebar, text="AG CLEANER", font=ctk.CTkFont(size=24, weight="bold"))
         self.logo.pack(pady=40, padx=20)
 
-        # Disk Stats in Sidebar
         self.stats_box = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.stats_box.pack(pady=10, padx=20, fill="x")
         self.free_lbl = ctk.CTkLabel(self.stats_box, text="Free: -- GB", font=("Arial", 14, "bold"), text_color="#2ecc71")
         self.free_lbl.pack()
+
+        # Stop Button in Sidebar
+        self.btn_stop = ctk.CTkButton(self.sidebar, text="🛑 Batalkan Proses", fg_color="#e67e22", hover_color="#d35400", command=self.stop_process, state="disabled")
+        self.btn_stop.pack(pady=20, padx=20, fill="x")
 
         # Theme Switcher
         self.appearance_mode_menu = ctk.CTkOptionMenu(self.sidebar, values=["Dark", "Light", "System"], command=self.change_appearance)
@@ -58,7 +62,7 @@ class CleanerUI(ctk.CTk):
         self.setup_system_tab()
         self.setup_projects_tab()
 
-        # Global Status Bar & Progress
+        # Global Status Bar
         self.status_bar = ctk.CTkLabel(self, text="Ready to scan...", font=("Arial", 12, "italic"))
         self.status_bar.grid(row=1, column=1, pady=(0, 5))
         
@@ -68,13 +72,10 @@ class CleanerUI(ctk.CTk):
 
     def setup_system_tab(self):
         self.tab_system.grid_columnconfigure(0, weight=1)
-        
         self.btn_scan_sys = ctk.CTkButton(self.tab_system, text="🔍 Scan System Files", height=40, command=self.run_scan)
         self.btn_scan_sys.pack(pady=10, padx=20)
-
         self.scroll_sys = ctk.CTkScrollableFrame(self.tab_system, label_text="System Junk Locations")
         self.scroll_sys.pack(fill="both", expand=True, padx=10, pady=10)
-
         for name, info in self.core.categories.items():
             item = ctk.CTkFrame(self.scroll_sys, fg_color="transparent")
             item.pack(fill="x", pady=5)
@@ -83,90 +84,97 @@ class CleanerUI(ctk.CTk):
             lbl = ctk.CTkLabel(item, text="-- MB")
             lbl.pack(side="right")
             self.category_labels[name] = lbl
-
         self.btn_clean_sys = ctk.CTkButton(self.tab_system, text="✨ Clean Selected", fg_color="#e74c3c", command=self.run_clean)
         self.btn_clean_sys.pack(pady=10)
 
     def setup_projects_tab(self):
         self.tab_projects.grid_columnconfigure(0, weight=1)
-
         path_frame = ctk.CTkFrame(self.tab_projects, fg_color="transparent")
         path_frame.pack(fill="x", padx=20, pady=10)
-        
         self.project_path_var = tk.StringVar(value="E:\\projects")
         self.path_entry = ctk.CTkEntry(path_frame, textvariable=self.project_path_var, placeholder_text="Select projects directory...")
         self.path_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        
         self.btn_browse = ctk.CTkButton(path_frame, text="Browse", width=80, command=self.browse_path)
         self.btn_browse.pack(side="right")
-
         self.pattern_vars = {p: tk.BooleanVar(value=True) for p in self.core.dev_patterns}
         pattern_frame = ctk.CTkFrame(self.tab_projects)
         pattern_frame.pack(fill="x", padx=20, pady=5)
-        
         grid_container = ctk.CTkFrame(pattern_frame, fg_color="transparent")
         grid_container.pack(fill="x", padx=10, pady=5)
-        
         cols = 4
         for i, p in enumerate(self.core.dev_patterns):
             cb = ctk.CTkCheckBox(grid_container, text=p, variable=self.pattern_vars[p], font=("Arial", 11))
             cb.grid(row=i//cols, column=i%cols, padx=10, pady=5, sticky="w")
-
         self.btn_scan_dev = ctk.CTkButton(self.tab_projects, text="🔎 Scan Dev Folders", command=self.run_dev_scan)
         self.btn_scan_dev.pack(pady=10)
-
         self.dev_scroll = ctk.CTkScrollableFrame(self.tab_projects, label_text="Found Project Junk")
         self.dev_scroll.pack(fill="both", expand=True, padx=10, pady=10)
-
         self.btn_clean_dev = ctk.CTkButton(self.tab_projects, text="🗑️ Delete Found Folders", fg_color="#e74c3c", command=self.run_dev_clean)
         self.btn_clean_dev.pack(pady=10)
 
     def browse_path(self):
         path = filedialog.askdirectory()
-        if path:
-            self.project_path_var.set(path)
+        if path: self.project_path_var.set(path)
 
     def update_disk_stats(self):
         try:
             usage = psutil.disk_usage('C:')
             if hasattr(self, 'free_lbl'):
                 self.free_lbl.configure(text=f"C: Free: {usage.free / (1024**3):.1f} GB")
-        except Exception:
-            pass
+        except: pass
+
+    def stop_process(self):
+        self.stop_event.set()
+        self.status_bar.configure(text="Menghentikan proses...")
+
+    def set_busy(self, busy=True):
+        if busy:
+            self.stop_event.clear()
+            self.btn_stop.configure(state="normal")
+            self.progress.set(0)
+        else:
+            self.btn_stop.configure(state="disabled")
 
     def run_scan(self):
+        self.set_busy(True)
         self.btn_scan_sys.configure(state="disabled")
-        self.status_bar.configure(text="Scanning system files...")
         threading.Thread(target=self._scan_thread, daemon=True).start()
 
     def _scan_thread(self):
         items = list(self.core.categories.keys())
         for i, name in enumerate(items):
-            size = self.core.scan_category(name)
+            if self.stop_event.is_set(): break
+            self.status_bar.configure(text=f"Scanning {name}...")
+            size = self.core.scan_category(name, self.stop_event)
             self.category_labels[name].configure(text=format_size(size))
             self.progress.set((i + 1) / len(items))
-        self.status_bar.configure(text="Scan completed!")
+        self.status_bar.configure(text="Scan selesai!" if not self.stop_event.is_set() else "Scan dibatalkan.")
         self.btn_scan_sys.configure(state="normal")
+        self.set_busy(False)
 
     def run_clean(self):
+        self.set_busy(True)
         self.btn_clean_sys.configure(state="disabled")
-        self.status_bar.configure(text="Starting cleanup...")
         threading.Thread(target=self._clean_thread, daemon=True).start()
 
     def _clean_thread(self):
         selected = [n for n, v in self.selected_vars.items() if v.get()]
         total_freed = 0
         for i, name in enumerate(selected):
+            if self.stop_event.is_set(): break
+            self.status_bar.configure(text=f"Cleaning {name}...")
             freed = self.core.clean_category(name)
             total_freed += freed
-            new_size = self.core.scan_category(name)
+            new_size = self.core.scan_category(name, self.stop_event)
             self.category_labels[name].configure(text=format_size(new_size))
             self.progress.set((i + 1) / len(selected))
         self.update_disk_stats()
-        self.status_bar.configure(text=f"Done! Freed {format_size(total_freed)}")
+        self.status_bar.configure(text=f"Selesai! Freed {format_size(total_freed)}" if not self.stop_event.is_set() else "Pembersihan dibatalkan.")
         self.btn_clean_sys.configure(state="normal")
+        self.set_busy(False)
 
     def run_dev_scan(self):
+        self.set_busy(True)
         self.btn_scan_dev.configure(state="disabled")
         for widget in self.dev_scroll.winfo_children(): widget.destroy()
         self.found_dev_items = []
@@ -175,7 +183,9 @@ class CleanerUI(ctk.CTk):
     def _dev_scan_thread(self):
         root = self.project_path_var.get()
         selected_patterns = [p for p, v in self.pattern_vars.items() if v.get()]
-        found = self.core.scan_dev_folders(root, selected_patterns)
+        
+        found = self.core.scan_dev_folders(root, selected_patterns, self.stop_event)
+        
         for item in found:
             row = ctk.CTkFrame(self.dev_scroll, fg_color="transparent")
             row.pack(fill="x", pady=2)
@@ -185,10 +195,13 @@ class CleanerUI(ctk.CTk):
             size_lbl = ctk.CTkLabel(row, text=format_size(item['size']))
             size_lbl.pack(side="right")
             self.found_dev_items.append({"path": item['path'], "var": var, "lbl": size_lbl})
-        self.status_bar.configure(text=f"Scan complete. Found {len(found)} folders.")
+        
+        self.status_bar.configure(text=f"Ditemukan {len(found)} folder." if not self.stop_event.is_set() else "Scan dibatalkan.")
         self.btn_scan_dev.configure(state="normal")
+        self.set_busy(False)
 
     def run_dev_clean(self):
+        self.set_busy(True)
         self.btn_clean_dev.configure(state="disabled")
         threading.Thread(target=self._dev_clean_thread, daemon=True).start()
 
@@ -196,13 +209,15 @@ class CleanerUI(ctk.CTk):
         to_clean = [i for i in self.found_dev_items if i['var'].get()]
         freed_total = 0
         for i, item in enumerate(to_clean):
+            if self.stop_event.is_set(): break
             freed = self.core.clean_path(item['path'])
             freed_total += freed
             item['lbl'].configure(text="CLEANED", text_color="#2ecc71")
             self.progress.set((i + 1) / len(to_clean))
         self.update_disk_stats()
-        self.status_bar.configure(text=f"Finished! Freed {format_size(freed_total)}")
+        self.status_bar.configure(text=f"Selesai! Freed {format_size(freed_total)}" if not self.stop_event.is_set() else "Pembersihan dibatalkan.")
         self.btn_clean_dev.configure(state="normal")
+        self.set_busy(False)
 
     def change_appearance(self, mode):
         ctk.set_appearance_mode(mode)
