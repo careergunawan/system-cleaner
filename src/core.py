@@ -7,22 +7,31 @@ class CleanerCore:
     def __init__(self):
         # Base system paths
         self.categories = {
-            "User Temp": {"path": os.environ.get('TEMP'), "desc": "Temporary files created by apps"},
-            "System Temp": {"path": "C:\\Windows\\Temp", "desc": "Temporary files created by Windows"},
-            "Windows Update": {"path": "C:\\Windows\\SoftwareDistribution\\Download", "desc": "Cached update files (safe to delete)"},
-            "Prefetch": {"path": "C:\\Windows\\Prefetch", "desc": "Application launch cache"},
-            "Recycle Bin": {"path": "C:\\$Recycle.Bin", "desc": "Deleted files in trash"}
+            "User Temp": {"path": os.environ.get('TEMP'), "desc": "Temporary files created by apps", "type": "System"},
+            "System Temp": {"path": "C:\\Windows\\Temp", "desc": "Temporary files created by Windows", "type": "System"},
+            "Windows Update": {"path": "C:\\Windows\\SoftwareDistribution\\Download", "desc": "Cached update files (safe to delete)", "type": "System"},
+            "Prefetch": {"path": "C:\\Windows\\Prefetch", "desc": "Application launch cache", "type": "System"},
+            "Recycle Bin": {"path": "C:\\$Recycle.Bin", "desc": "Deleted files in trash", "type": "System"}
         }
 
         # Developer-specific safe clean locations
+        home = os.path.expanduser('~')
+        appdata = os.environ.get('AppData', '')
+        localappdata = os.environ.get('LocalAppData', '')
+
         dev_data = {
-            "npm Cache": {"path": os.path.join(os.environ.get('AppData', ''), 'npm-cache'), "desc": "Node.js package manager cache"},
-            "pip Cache": {"path": os.path.join(os.environ.get('LocalAppData', ''), 'pip', 'Cache'), "desc": "Python package manager cache"},
-            "NuGet Cache": {"path": os.path.join(os.path.expanduser('~'), '.nuget', 'packages'), "desc": "NuGet package cache (can be redownloaded)"},
-            "Gradle Cache": {"path": os.path.join(os.path.expanduser('~'), '.gradle', 'caches'), "desc": "Gradle build system cache"},
-            "Maven Repo": {"path": os.path.join(os.path.expanduser('~'), '.m2', 'repository'), "desc": "Maven local repository (can be redownloaded)"},
-            "VS Code Cache": {"path": os.path.join(os.environ.get('AppData', ''), 'Code', 'Cache'), "desc": "Visual Studio Code internal cache"},
-            "Android SDK Temp": {"path": os.path.join(os.environ.get('LocalAppData', ''), 'Android', 'Sdk', 'temp'), "desc": "Android SDK temporary download files"}
+            "npm Cache": {"path": os.path.join(appdata, 'npm-cache'), "desc": "Node.js package manager cache", "type": "Dev"},
+            "Yarn Cache": {"path": os.path.join(localappdata, 'Yarn', 'Cache'), "desc": "Yarn package manager cache", "type": "Dev"},
+            "pip Cache": {"path": os.path.join(localappdata, 'pip', 'Cache'), "desc": "Python package manager cache", "type": "Dev"},
+            "NuGet Cache": {"path": os.path.join(home, '.nuget', 'packages'), "desc": "NuGet package cache", "type": "Dev"},
+            "Gradle Cache": {"path": os.path.join(home, '.gradle', 'caches'), "desc": "Gradle build system cache", "type": "Dev"},
+            "Maven Repo": {"path": os.path.join(home, '.m2', 'repository'), "desc": "Maven local repository", "type": "Dev"},
+            "Cargo Registry": {"path": os.path.join(home, '.cargo', 'registry'), "desc": "Rust package registry", "type": "Dev"},
+            "Composer Cache": {"path": os.path.join(appdata, 'Composer', 'cache'), "desc": "PHP Composer cache", "type": "Dev"},
+            "Pub Cache": {"path": os.path.join(localappdata, 'Pub', 'Cache'), "desc": "Dart/Flutter pub cache", "type": "Dev"},
+            "VS Code Cache": {"path": os.path.join(appdata, 'Code', 'Cache'), "desc": "Visual Studio Code internal cache", "type": "Dev"},
+            "Postman Cache": {"path": os.path.join(appdata, 'Postman', 'Cache'), "desc": "Postman internal cache", "type": "Dev"},
+            "Android SDK Temp": {"path": os.path.join(localappdata, 'Android', 'Sdk', 'temp'), "desc": "Android SDK temporary downloads", "type": "Dev"}
         }
 
         # Add existing dev data if paths exist
@@ -33,8 +42,8 @@ class CleanerCore:
         # Drive D Junk (if exists)
         if os.path.exists('D:'):
             d_junk = {
-                "D: Recycle Bin": {"path": "D:\\$Recycle.Bin", "desc": "Deleted files in drive D trash"},
-                "D: Temp": {"path": "D:\\Temp", "desc": "Temporary files on drive D"}
+                "D: Recycle Bin": {"path": "D:\\$Recycle.Bin", "desc": "Deleted files in drive D trash", "type": "System"},
+                "D: Temp": {"path": "D:\\Temp", "desc": "Temporary files on drive D", "type": "System"}
             }
             for name, info in d_junk.items():
                 if os.path.exists(info["path"]):

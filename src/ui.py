@@ -83,11 +83,15 @@ class CleanerUI(ctk.CTk):
         self.btn_scan_sys = ctk.CTkButton(self.tab_system, text="🔍 Scan System Files", height=40, command=self.run_scan, font=("Arial", 13, "bold"))
         self.btn_scan_sys.pack(pady=10, padx=20)
         
-        self.scroll_sys = ctk.CTkScrollableFrame(self.tab_system, label_text="System Junk Locations", label_font=("Arial", 12, "bold"))
+        self.scroll_sys = ctk.CTkScrollableFrame(self.tab_system, label_text="Cleanup Categories", label_font=("Arial", 12, "bold"))
         self.scroll_sys.pack(fill="both", expand=True, padx=10, pady=10)
         
-        for name, info in self.core.categories.items():
-            item = ctk.CTkFrame(self.scroll_sys, fg_color=("gray95", "#2b2b2b"), height=40)
+        # Group categories
+        system_items = {k: v for k, v in self.core.categories.items() if v.get("type") == "System"}
+        dev_items = {k: v for k, v in self.core.categories.items() if v.get("type") == "Dev"}
+
+        def create_item_row(name, info, parent):
+            item = ctk.CTkFrame(parent, fg_color=("gray95", "#2b2b2b"), height=40)
             item.pack(fill="x", pady=2, padx=5)
             
             cb = ctk.CTkCheckBox(item, text=name, variable=self.selected_vars[name], font=("Arial", 12))
@@ -96,6 +100,17 @@ class CleanerUI(ctk.CTk):
             lbl = ctk.CTkLabel(item, text="-- MB", font=("Arial", 12, "bold"), text_color=("#34495e", "#bdc3c7"))
             lbl.pack(side="right", padx=15)
             self.category_labels[name] = lbl
+
+        # System Section
+        ctk.CTkLabel(self.scroll_sys, text="🌐 Windows & System Junk", font=("Arial", 11, "bold"), text_color="gray").pack(pady=(10, 5), anchor="w", padx=10)
+        for name, info in system_items.items():
+            create_item_row(name, info, self.scroll_sys)
+
+        # Dev Section
+        if dev_items:
+            ctk.CTkLabel(self.scroll_sys, text="👨‍💻 Developer Cache & Junk", font=("Arial", 11, "bold"), text_color="#3498db").pack(pady=(20, 5), anchor="w", padx=10)
+            for name, info in dev_items.items():
+                create_item_row(name, info, self.scroll_sys)
             
         self.btn_clean_sys = ctk.CTkButton(self.tab_system, text="✨ Clean Selected", fg_color="#e74c3c", hover_color="#c0392b", command=self.run_clean, height=40, font=("Arial", 13, "bold"))
         self.btn_clean_sys.pack(pady=10)
@@ -205,6 +220,11 @@ class CleanerUI(ctk.CTk):
             btn_del = ctk.CTkButton(action_frame, text="🗑️", width=30, height=30, fg_color="#e74c3c", hover_color="#c0392b", 
                                    command=lambda p=item['path'], n=item['name']: self.delete_analyzed_item(p, n))
             btn_del.pack(side="right", padx=5)
+
+            # Clean Contents button
+            btn_clean = ctk.CTkButton(action_frame, text="✨", width=30, height=30, fg_color="#2ecc71", hover_color="#27ae60",
+                                     command=lambda p=item['path'], n=item['name']: self.clean_analyzed_contents(p, n))
+            btn_clean.pack(side="right", padx=5)
             
             # Open button
             btn_open = ctk.CTkButton(action_frame, text="📂", width=30, height=30, fg_color=("#3498db", "#2980b9"), hover_color=("#2980b9", "#1f618d"),
@@ -258,6 +278,24 @@ class CleanerUI(ctk.CTk):
                 messagebox.showerror("Error", f"Gagal menghapus folder. Mungkin folder sedang digunakan atau membutuhkan akses Administrator.")
             
             self.status_bar.configure(text="Siap.")
+
+    def clean_analyzed_contents(self, path, name):
+        if not messagebox.askyesno("Konfirmasi Bersihkan", f"Apakah Anda yakin ingin membersihkan ISI dari folder ini?\n\n{path}\n\nFolder itu sendiri TIDAK akan dihapus, hanya isinya."):
+            return
+
+        self.status_bar.configure(text=f"Cleaning contents of {name}...")
+        freed = 0
+        try:
+            for item in os.listdir(path):
+                item_path = os.path.join(path, item)
+                freed += self.core.clean_path(item_path)
+        except Exception as e:
+            messagebox.showerror("Error", f"Gagal membersihkan: {str(e)}")
+            return
+
+        messagebox.showinfo("Berhasil", f"Isi folder {name} berhasil dibersihkan.\nRuang dibebaskan: {format_size(freed)}")
+        self.update_disk_stats()
+        self.run_analysis() # Refresh analysis results
 
     def browse_path(self):
         path = filedialog.askdirectory()
