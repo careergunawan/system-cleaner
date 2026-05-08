@@ -197,6 +197,30 @@ class CleanerUI(ctk.CTk):
             row = ctk.CTkFrame(self.analyzer_scroll, fg_color=("white", "#2b2b2b"), border_width=1, border_color=("gray85", "gray25"))
             row.pack(fill="x", pady=4, padx=5)
             
+            # Action buttons frame
+            action_frame = ctk.CTkFrame(row, fg_color="transparent")
+            action_frame.pack(side="right", padx=10)
+            
+            # Delete button
+            btn_del = ctk.CTkButton(action_frame, text="🗑️", width=30, height=30, fg_color="#e74c3c", hover_color="#c0392b", 
+                                   command=lambda p=item['path'], n=item['name']: self.delete_analyzed_item(p, n))
+            btn_del.pack(side="right", padx=5)
+            
+            # Open button
+            btn_open = ctk.CTkButton(action_frame, text="📂", width=30, height=30, fg_color=("#3498db", "#2980b9"), hover_color=("#2980b9", "#1f618d"),
+                                    command=lambda p=item['path']: os.startfile(p) if os.path.exists(p) else None)
+            btn_open.pack(side="right", padx=5)
+
+            data_frame = ctk.CTkFrame(row, fg_color="transparent", width=120)
+            data_frame.pack(side="right", padx=5)
+            
+            size_lbl = ctk.CTkLabel(data_frame, text=format_size(item['size']), font=("Arial", 12, "bold"), text_color=("#3498db", "#5dade2"))
+            size_lbl.pack(side="top", anchor="e")
+            
+            progress = ctk.CTkProgressBar(data_frame, width=80, height=8, progress_color="#3498db")
+            progress.pack(side="bottom", pady=(0, 5))
+            progress.set(item['size'] / self.max_analysis_size)
+
             info_frame = ctk.CTkFrame(row, fg_color="transparent")
             info_frame.pack(side="left", fill="x", expand=True, padx=10, pady=5)
             
@@ -205,16 +229,35 @@ class CleanerUI(ctk.CTk):
             
             path_lbl = ctk.CTkLabel(info_frame, text=item['path'], font=("Arial", 9), text_color="gray", anchor="w")
             path_lbl.pack(fill="x")
+
+    def delete_analyzed_item(self, path, name):
+        # Critical system protection
+        protected = ["windows", "program files", "program files (x86)", "users", "programdata"]
+        is_protected = name.lower() in protected or any(p in path.lower() for p in [os.environ.get('SystemRoot', 'C:\\Windows').lower()])
+
+        msg = f"PERHATIAN: Anda akan MENGHAPUS PERMANEN folder ini beserta seluruh isinya:\n\n{path}\n\n⚠️ Folder ini TIDAK akan masuk ke Recycle Bin. Lanjutkan?"
+        if is_protected:
+            msg = f"🛑 PERINGATAN KRITIS: Folder ini ({name}) adalah bagian vital dari SISTEM WINDOWS.\n\nJika dihapus, komputer Anda bisa RUSAK TOTAL dan tidak bisa menyala.\n\nAPAKAH ANDA SANGAT YAKIN INGIN MENGHAPUSNYA?"
             
-            data_frame = ctk.CTkFrame(row, fg_color="transparent", width=150)
-            data_frame.pack(side="right", padx=10)
+        if messagebox.askyesno("Konfirmasi Hapus Permanen", msg, icon='warning' if not is_protected else 'error'):
+            # Double check for system folders
+            if is_protected:
+                if not messagebox.askyesno("Konfirmasi Terakhir", "SAYA MENGERTI RISIKONYA. LANJUTKAN HAPUS?"):
+                    return
+
+            self.status_bar.configure(text=f"Menghapus {name}...")
+            freed = self.core.clean_path(path)
             
-            size_lbl = ctk.CTkLabel(data_frame, text=format_size(item['size']), font=("Arial", 12, "bold"), text_color=("#3498db", "#5dade2"))
-            size_lbl.pack(side="top", anchor="e")
+            if freed > 0:
+                messagebox.showinfo("Berhasil", f"Folder {name} berhasil dihapus.\nRuang dibebaskan: {format_size(freed)}")
+                # Remove from local list and refresh
+                self.analysis_results = [i for i in self.analysis_results if i['path'] != path]
+                self._render_analysis_results()
+                self.update_disk_stats()
+            else:
+                messagebox.showerror("Error", f"Gagal menghapus folder. Mungkin folder sedang digunakan atau membutuhkan akses Administrator.")
             
-            progress = ctk.CTkProgressBar(data_frame, width=100, height=8, progress_color="#3498db")
-            progress.pack(side="bottom", pady=(0, 5))
-            progress.set(item['size'] / self.max_analysis_size)
+            self.status_bar.configure(text="Siap.")
 
     def browse_path(self):
         path = filedialog.askdirectory()
