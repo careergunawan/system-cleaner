@@ -11,17 +11,27 @@ def format_size(size_bytes):
     return f"{s} {size_name[i]}"
 
 def get_directory_size(directory, stop_event=None):
-    """Calculates the total size of a directory recursively, with optional stop event."""
+    """Calculates the total size of a directory recursively (iterative), with optional stop event."""
     total = 0
-    try:
-        with os.scandir(directory) as it:
-            for entry in it:
-                if stop_event and stop_event.is_set():
-                    return total
-                if entry.is_file():
-                    total += entry.stat().st_size
-                elif entry.is_dir():
-                    total += get_directory_size(entry.path, stop_event)
-    except (PermissionError, FileNotFoundError, OSError):
-        pass
+    stack = [directory]
+    
+    while stack:
+        if stop_event and stop_event.is_set():
+            return total
+            
+        current_dir = stack.pop()
+        try:
+            with os.scandir(current_dir) as it:
+                for entry in it:
+                    if stop_event and stop_event.is_set():
+                        return total
+                    try:
+                        if entry.is_file(follow_symlinks=False):
+                            total += entry.stat(follow_symlinks=False).st_size
+                        elif entry.is_dir(follow_symlinks=False):
+                            stack.append(entry.path)
+                    except (PermissionError, OSError):
+                        continue
+        except (PermissionError, FileNotFoundError, OSError):
+            continue
     return total
