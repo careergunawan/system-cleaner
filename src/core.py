@@ -20,6 +20,7 @@ class CleanerCore:
         localappdata = os.environ.get('LocalAppData', '')
 
         dev_data = {
+            "Antigravity Recordings": {"path": os.path.join(home, '.gemini', 'antigravity', 'browser_recordings'), "desc": "Antigravity browser agent recordings", "type": "Dev"},
             "npm Cache": {"path": os.path.join(appdata, 'npm-cache'), "desc": "Node.js package manager cache", "type": "Dev"},
             "Yarn Cache": {"path": os.path.join(localappdata, 'Yarn', 'Cache'), "desc": "Yarn package manager cache", "type": "Dev"},
             "pip Cache": {"path": os.path.join(localappdata, 'pip', 'Cache'), "desc": "Python package manager cache", "type": "Dev"},
